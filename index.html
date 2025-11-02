@@ -91,16 +91,16 @@
     <div id="countdown" class="text-white"></div>
     
     <!-- ボタンエリア (新しい位置: タイマーの下) -->
-    <div class="flex space-x-4 mt-6 w-full max-w-md">
+    <div class="flex items-stretch space-x-4 mt-6 w-full max-w-md">
         <!-- スタート/一時停止/再開ボタン -->
-        <button id="startButton" class="flex-1 px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 transform hover:scale-[1.02]">
+        <button id="startButton" class="w-2/3 px-6 py-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 transform hover:scale-[1.02]">
             <!-- 初期状態のSVGアイコン -->
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
             </svg>
             スタート
         </button>
-        <button id="resetButton" class="flex-1 px-4 py-3 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50 transition duration-150 transform hover:scale-[1.02]">
+        <button id="resetButton" class="w-1/3 px-4 py-4 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50 transition duration-150 transform hover:scale-[1.02]">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 011.127 12.508l1.012 1.012a8.001 8 0 0015.056-6.608 1 1 0 00-1.023-.746h-3.991l-.887 2.364a1 1 0 001.066 1.458l3.704-1.488a1 1 0 00.354-1.767l-3.328-3.328z" />
                 <path fill-rule="evenodd" d="M3 8a1 1 0 00-1 1v2a1 1 0 102 0V9a1 1 0 00-1-1z" clip-rule="evenodd" />
@@ -675,6 +675,21 @@
             input.addEventListener('touchmove', handleTouchMove, { passive: false });
         });
 
+        /**
+         * キーボードショートカットのハンドラ
+         */
+        function handleKeyPress(event) {
+            // 入力フィールドにフォーカスがある場合は何もしない
+            if (event.target.tagName.toLowerCase() === 'input') {
+                return;
+            }
+
+            // スペースキーが押されたらスタート/一時停止/再開を実行
+            if (event.code === 'Space') {
+                event.preventDefault(); // ページのスクロールを防ぐ
+                handleStartPause();
+            }
+        }
 
         // ページロード時の初期表示設定
         window.onload = function() {
@@ -682,6 +697,9 @@
             updateInitialTimeFromInputs();
             resetCountdown(); 
             showAlert('時、分、秒を設定し、必要に応じて遅延時間を設定してスタートしてください。');
+
+            // キーボードイベントリスナーを追加
+            document.addEventListener('keydown', handleKeyPress);
         };
     </script>
 </body>
