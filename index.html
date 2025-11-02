@@ -91,11 +91,11 @@
     <div id="countdown" class="text-white"></div>
     
     <!-- ボタンエリア (新しい位置: タイマーの下) -->
-    <div class="flex items-stretch space-x-4 mt-6 w-full max-w-md">
+    <div class="flex items-center space-x-4 mt-6 w-full max-w-md">
         <!-- スタート/一時停止/再開ボタン -->
-        <button id="startButton" class="w-2/3 px-6 py-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 transform hover:scale-[1.02]">
+        <button id="startButton" class="w-2/3 px-6 py-5 bg-blue-600 text-white text-lg font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 transform hover:scale-[1.02]">
             <!-- 初期状態のSVGアイコン -->
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
             </svg>
             スタート
@@ -284,7 +284,7 @@
                                            'bg-green-600', 'hover:bg-green-700', 'focus:ring-green-500');
             
             resetButton.classList.remove('opacity-50', 'cursor-not-allowed');
-
+            
             if (isRunning) {
                 // 動作中 (一時停止中か実行中)
                 resetButton.disabled = false;
@@ -298,12 +298,12 @@
                     // 状態: 一時停止中 (再開ボタン)
                     startButton.disabled = false;
                     startButton.classList.add('bg-green-600', 'hover:bg-green-700', 'focus:ring-green-500');
-                    startButton.innerHTML = ICON_PLAY + '再開';
+                    startButton.innerHTML = ICON_PLAY.replace('h-6 w-6', 'h-6 w-6') + '再開';
                 } else {
                     // 状態: 実行中 (一時停止ボタン)
                     startButton.disabled = false;
                     startButton.classList.add('btn-pause', 'hover:bg-orange-600', 'focus:ring-orange-500');
-                    startButton.innerHTML = ICON_PAUSE + '一時停止';
+                    startButton.innerHTML = ICON_PAUSE.replace('h-6 w-6', 'h-6 w-6') + '一時停止';
                 }
             } else {
                 // 停止中 / 初期状態 / 終了後
@@ -324,7 +324,7 @@
                 inputOffsetSecond.disabled = false;
 
                 startButton.classList.add('bg-blue-600', 'hover:bg-blue-700', 'focus:ring-blue-500');
-                startButton.innerHTML = ICON_PLAY + 'スタート';
+                startButton.innerHTML = ICON_PLAY.replace('h-6 w-6', 'h-6 w-6') + 'スタート';
             }
         }
 
@@ -449,7 +449,7 @@
             
             // 実行
             runCountdown();
-            showAlert(`タイマーを${offsetTime}秒遅延させて開始しました (${timeLeft}秒から)。`);
+            showAlert(`タイマーを${offsetTime > 0 ? offsetTime + '秒遅延させて' : ''}開始しました (${timeLeft}秒から)。`);
         }
 
         /**
