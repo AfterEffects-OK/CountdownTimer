@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>動画再生用 カウントダウンタイマー (フリック/ホイール対応)</title>
+    <!-- Tailwind CSS CDNを読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 'Inter'フォントを適用 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.5s ease;
+        }
+
+        /* カウントダウン表示用の巨大なフォントスタイル */
+        #countdown {
+            font-size: 8rem; 
+            line-height: 1;
+            transition: color 0.5s, transform 0.3s;
+            text-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+            
+            /* --- 数字の幅を固定 (等幅数字) --- */
+            font-variant-numeric: tabular-nums; 
+            font-feature-settings: "tnum";
+            /* ------------------------------------ */
+
+            /* スマホ表示対応: さらに小さく */
+            @media (max-width: 640px) {
+                font-size: 5rem;
+            }
+        }
+
+        /* 終了時のアニメーション */
+        .countdown-finish {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* アラートボックスの基本スタイル */
+        .alert-box {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background-color: #38a169;
+            color: white;
+            z-index: 50;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .alert-box.show {
+            opacity: 1;
+        }
+
+        /* 数字入力フィールドのカスタムスタイル（タッチしやすく、文字を中央に） */
+        .time-input {
+            appearance: none; /* デフォルトの矢印を非表示に (Chrome/Safari) */
+            -moz-appearance: textfield; /* Firefoxの矢印を非表示に */
+            /* カーソルをポインターに変更し、操作可能であることを示す */
+            cursor: pointer;
+        }
+        .time-input::-webkit-outer-spin-button,
+        .time-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* 一時停止ボタン（オレンジ） */
+        .btn-pause {
+            background-color: #f6ad55;
+            --tw-ring-color: #ed8936;
+        }
+        .btn-pause:hover {
+            background-color: #ed8936;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <!-- カウントダウン表示エリア -->
+    <div id="countdown" class="text-white"></div>
+    
+    <!-- ボタンエリア (新しい位置: タイマーの下) -->
+    <div class="flex space-x-4 mt-6 w-full max-w-md">
+        <!-- スタート/一時停止/再開ボタン -->
+        <button id="startButton" class="flex-1 px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 transform hover:scale-[1.02]">
+            <!-- 初期状態のSVGアイコン -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+            </svg>
+            スタート
+        </button>
+        <button id="resetButton" class="flex-1 px-4 py-3 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50 transition duration-150 transform hover:scale-[1.02]">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 011.127 12.508l1.012 1.012a8.001 8 0 0015.056-6.608 1 1 0 00-1.023-.746h-3.991l-.887 2.364a1 1 0 001.066 1.458l3.704-1.488a1 1 0 00.354-1.767l-3.328-3.328z" />
+                <path fill-rule="evenodd" d="M3 8a1 1 0 00-1 1v2a1 1 0 102 0V9a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            リセット
+        </button>
+    </div>
+
+    <!-- コントロールパネル -->
+    <div class="mt-8 p-6 bg-gray-800 rounded-xl shadow-2xl w-full max-w-md">
+        
+        <!-- タイマー設定エリア -->
+        <h2 class="text-xl font-bold text-gray-100 mb-6 text-center">タイマー設定 (時:分:秒)</h2>
+        <p class="text-xs text-gray-400 text-center mb-4">
+            入力フィールドを<strong class="text-gray-200">マウスホイールでスクロール</strong>するか、<strong class="text-gray-200">上下にフリック</strong>すると、隣の単位と連動して値が変更されます。
+        </p>
+        
+        <div class="flex flex-col space-y-6">
+            <!-- 時分秒入力エリア (メインタイマー) -->
+            <div class="flex justify-center space-x-2 sm:space-x-4 items-center">
+                
+                <!-- 時 -->
+                <div class="flex-1 min-w-0">
+                    <label for="inputHour" class="block text-sm font-medium text-gray-300 mb-1 text-center">時</label>
+                    <input type="number" id="inputHour" value="0" min="0" max="99"
+                           class="time-input w-full px-2 py-3 border border-gray-600 bg-gray-700 text-white text-3xl text-center rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+                </div>
+                <span class="text-4xl text-gray-300 mb-2 font-bold">:</span>
+
+                <!-- 分 -->
+                <div class="flex-1 min-w-0">
+                    <label for="inputMinute" class="block text-sm font-medium text-gray-300 mb-1 text-center">分</label>
+                    <input type="number" id="inputMinute" value="1" min="0" max="59"
+                           class="time-input w-full px-2 py-3 border border-gray-600 bg-gray-700 text-white text-3xl text-center rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+                </div>
+                <span class="text-4xl text-gray-300 mb-2 font-bold">:</span>
+
+                <!-- 秒 -->
+                <div class="flex-1 min-w-0">
+                    <label for="inputSecond" class="block text-sm font-medium text-gray-300 mb-1 text-center">秒</label>
+                    <input type="number" id="inputSecond" value="0" min="0" max="59"
+                           class="time-input w-full px-2 py-3 border border-gray-600 bg-gray-700 text-white text-3xl text-center rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+                </div>
+            </div>
+            
+            <!-- 再生開始遅延時間 (Offset) エリア -->
+            <div class="border-t border-gray-700 pt-4 mt-6">
+                <h3 class="text-lg font-bold text-gray-300 mb-4 text-center">再生開始遅延時間 (動画再生済み時間)</h3>
+                <div class="flex justify-center space-x-4 items-center max-w-sm mx-auto">
+                    <!-- 分 (Offset) -->
+                    <div class="flex-1 min-w-0">
+                        <label for="inputOffsetMinute" class="block text-sm font-medium text-gray-400 mb-1 text-center">分</label>
+                        <input type="number" id="inputOffsetMinute" value="0" min="0" max="59"
+                            class="time-input w-full px-2 py-3 border border-gray-600 bg-gray-700 text-white text-2xl text-center rounded-lg focus:ring-yellow-500 focus:border-yellow-500 transition duration-150">
+                    </div>
+                    <span class="text-3xl text-gray-400 mb-2 font-bold">:</span>
+
+                    <!-- 秒 (Offset) -->
+                    <div class="flex-1 min-w-0">
+                        <label for="inputOffsetSecond" class="block text-sm font-medium text-gray-400 mb-1 text-center">秒</label>
+                        <input type="number" id="inputOffsetSecond" value="0" min="0" max="59"
+                            class="time-input w-full px-2 py-3 border border-gray-600 bg-gray-700 text-white text-2xl text-center rounded-lg focus:ring-yellow-500 focus:border-yellow-500 transition duration-150">
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 text-center mt-2">※タイマーは「設定時間 - 遅延時間」から開始します。</p>
+            </div>
+            
+        </div>
+    </div>
+    
+    <!-- カスタムアラートボックス -->
+    <div id="customAlert" class="alert-box"></div>
+
+    <script>
+        // DOM要素の取得
+        const countdownElement = document.getElementById('countdown');
+        const startButton = document.getElementById('startButton');
+        const resetButton = document.getElementById('resetButton');
+        const customAlert = document.getElementById('customAlert');
+
+        // メインタイマーの入力フィールド
+        const inputHour = document.getElementById('inputHour');
+        const inputMinute = document.getElementById('inputMinute');
+        const inputSecond = document.getElementById('inputSecond');
+        const timeInputs = [inputHour, inputMinute, inputSecond];
+        
+        // オフセットタイマーの入力フィールド
+        const inputOffsetMinute = document.getElementById('inputOffsetMinute');
+        const inputOffsetSecond = document.getElementById('inputOffsetSecond');
+        const offsetTimeInputs = [inputOffsetMinute, inputOffsetSecond];
+
+        // 全ての操作可能入力フィールドをまとめる (ホイール/フリック操作用)
+        const allInputs = [...timeInputs, ...offsetTimeInputs];
+
+
+        // 状態変数
+        let timerInterval = null;
+        let timeLeft = 60; 
+        let initialTime = 60; 
+        let offsetTime = 0; // 追加: 遅延時間 (秒)
+        let isRunning = false;
+        let isPaused = false; 
+        
+        // localStorageのキー
+        const STORAGE_OFFSET_MIN_KEY = 'timerOffsetMinute';
+        const STORAGE_OFFSET_SEC_KEY = 'timerOffsetSecond';
+        
+        // タッチ操作用変数
+        let touchStartY = 0;
+        const TOUCH_THRESHOLD = 15; // スワイプと認識するY軸移動量
+
+        // 共通アイコンのHTML
+        const ICON_PLAY = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>';
+        const ICON_PAUSE = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>';
+
+        /**
+         * 2桁表示のためのパディング関数
+         * @param {number} num - 数字
+         */
+        const pad = (num) => String(num).padStart(2, '0');
+
+        /**
+         * アラートメッセージを表示する関数
+         * @param {string} message - 表示するメッセージ
+         */
+        function showAlert(message) {
+            customAlert.textContent = message;
+            customAlert.classList.add('show');
+            setTimeout(() => {
+                customAlert.classList.remove('show');
+            }, 3000);
+        }
+        
+        /**
+         * 入力フィールドの値から合計秒数を計算し、initialTimeとoffsetTimeを更新する
+         */
+        function updateInitialTimeFromInputs() {
+            // メインタイマーの入力値を取得
+            const h = parseInt(inputHour.value, 10) || 0;
+            const m = parseInt(inputMinute.value, 10) || 0;
+            const s = parseInt(inputSecond.value, 10) || 0;
+            initialTime = h * 3600 + m * 60 + s;
+            
+            // オフセット時間の入力値を取得
+            const om = parseInt(inputOffsetMinute.value, 10) || 0;
+            const os = parseInt(inputOffsetSecond.value, 10) || 0;
+            offsetTime = om * 60 + os;
+        }
+
+        /**
+         * オフセット時間をlocalStorageに保存する関数
+         */
+        function saveOffsetTime() {
+            localStorage.setItem(STORAGE_OFFSET_MIN_KEY, inputOffsetMinute.value);
+            localStorage.setItem(STORAGE_OFFSET_SEC_KEY, inputOffsetSecond.value);
+        }
+
+        /**
+         * localStorageからオフセット時間を読み込む関数
+         */
+        function loadOffsetTime() {
+            const storedMin = localStorage.getItem(STORAGE_OFFSET_MIN_KEY);
+            const storedSec = localStorage.getItem(STORAGE_OFFSET_SEC_KEY);
+
+            if (storedMin !== null) {
+                // 読み込んだ値が数値であることを確認し、2桁パディングを適用
+                inputOffsetMinute.value = pad(parseInt(storedMin, 10) || 0);
+            }
+            if (storedSec !== null) {
+                inputOffsetSecond.value = pad(parseInt(storedSec, 10) || 0);
+            }
+        }
+
+
+        /**
+         * ボタンと入力フィールドの表示状態を更新する
+         */
+        function updateButtonsState() {
+            // クラスの初期化
+            startButton.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'focus:ring-blue-500', 
+                                           'btn-pause', 'hover:bg-orange-600', 'focus:ring-orange-500',
+                                           'bg-green-600', 'hover:bg-green-700', 'focus:ring-green-500');
+            
+            resetButton.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            if (isRunning) {
+                // 動作中 (一時停止中か実行中)
+                resetButton.disabled = false;
+                inputHour.disabled = true;
+                inputMinute.disabled = true;
+                inputSecond.disabled = true;
+                inputOffsetMinute.disabled = true; // 遅延時間もロック
+                inputOffsetSecond.disabled = true; // 遅延時間もロック
+                
+                if (isPaused) {
+                    // 状態: 一時停止中 (再開ボタン)
+                    startButton.disabled = false;
+                    startButton.classList.add('bg-green-600', 'hover:bg-green-700', 'focus:ring-green-500');
+                    startButton.innerHTML = ICON_PLAY + '再開';
+                } else {
+                    // 状態: 実行中 (一時停止ボタン)
+                    startButton.disabled = false;
+                    startButton.classList.add('btn-pause', 'hover:bg-orange-600', 'focus:ring-orange-500');
+                    startButton.innerHTML = ICON_PAUSE + '一時停止';
+                }
+            } else {
+                // 停止中 / 初期状態 / 終了後
+                updateInitialTimeFromInputs(); 
+                
+                // スタートボタンは、(初期時間 > 0) かつ (初期時間 > 遅延時間) の場合に有効
+                const isValidTime = initialTime > 0;
+                const isOffsetValid = offsetTime < initialTime;
+                
+                startButton.disabled = !isValidTime || !isOffsetValid;
+                resetButton.disabled = false;
+                
+                // 入力フィールドを有効化
+                inputHour.disabled = false;
+                inputMinute.disabled = false;
+                inputSecond.disabled = false;
+                inputOffsetMinute.disabled = false;
+                inputOffsetSecond.disabled = false;
+
+                startButton.classList.add('bg-blue-600', 'hover:bg-blue-700', 'focus:ring-blue-500');
+                startButton.innerHTML = ICON_PLAY + 'スタート';
+            }
+        }
+
+
+        /**
+         * タイマーの表示を更新する関数 (H:MM:SSまたはMM:SS形式)
+         */
+        function updateDisplay() {
+            let displayTime = '';
+
+            // timeLeftがマイナスの場合は0として計算 (ただし、runCountdownで停止するため基本は0以上)
+            const totalSeconds = Math.max(0, timeLeft);
+            
+            // 時・分・秒の計算
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = totalSeconds % 60;
+
+            // 表示形式の決定 (時が0の場合はMM:SS、それ以外はH:MM:SS)
+            if (h > 0) {
+                displayTime = `${h}:${pad(m)}:${pad(s)}`;
+            } else {
+                displayTime = `${pad(m)}:${pad(s)}`;
+            }
+            
+            countdownElement.textContent = displayTime;
+
+            // --- スタイル更新 ---
+            
+            // スタイルクラスを一旦リセット
+            countdownElement.classList.remove('text-yellow-400', 'animate-pulse', 'text-white', 'text-red-500', 'countdown-finish');
+            document.body.classList.remove('bg-gray-800');
+            document.body.classList.add('bg-gray-900');
+
+            if (isRunning && timeLeft > 0) {
+                // 実行中、かつ時間が残っている場合
+
+                if (timeLeft <= 10) {
+                    // 10秒〜1秒: 黄色表示（点滅なし）
+                    countdownElement.classList.add('text-yellow-400');
+                } else {
+                    // 11秒以上: 通常の白色
+                    countdownElement.classList.add('text-white');
+                }
+            } else if (timeLeft === 0 && !isRunning) {
+                // 終了状態の場合はfinalizeCountdownで設定されているはずだが、念のためここで設定を維持
+                countdownElement.classList.add('text-red-500', 'countdown-finish');
+                document.body.classList.remove('bg-gray-900');
+                document.body.classList.add('bg-gray-800');
+            } else { 
+                // リセット直後や一時停止中（timeLeft > 0）
+                countdownElement.classList.add('text-white');
+            } 
+        }
+
+        /**
+         * タイマーが0になったときの最終状態を設定 (スタイルとボタン状態の更新)
+         */
+        function finalizeCountdown() {
+            // スタイルを最終状態 (赤色、点滅、背景変更) に変更
+            countdownElement.classList.remove('text-yellow-400', 'animate-pulse', 'text-white');
+            countdownElement.classList.add('text-red-500', 'countdown-finish');
+            document.body.classList.remove('bg-gray-900');
+            document.body.classList.add('bg-gray-800');
+            
+            // 状態更新
+            isRunning = false;
+            isPaused = false;
+            updateButtonsState(); // ボタンを「スタート」可能状態に戻す
+            
+            showAlert('カウントダウンが終了しました！');
+        }
+
+        /**
+         * タイマーのコア実行ループ
+         */
+        function runCountdown() {
+            updateButtonsState();
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateDisplay();
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    // 最終表示を00:00に確定させるために、再度updateDisplayを呼び出す（timeLeftは0）
+                    updateDisplay(); 
+                    finalizeCountdown();
+                }
+            }, 1000);
+        }
+
+        /**
+         * 新しいカウントダウンを開始する
+         */
+        function startNewCountdown() {
+            updateInitialTimeFromInputs(); 
+
+            // バリデーション
+            if (initialTime <= 0) {
+                showAlert('0秒より大きい時間を設定してください。');
+                return;
+            }
+            
+            // オフセット時間のバリデーション
+            if (offsetTime >= initialTime) {
+                showAlert('遅延時間はタイマーの合計時間より短く設定してください。');
+                return;
+            }
+
+            // 状態を初期化してスタート
+            // *** 設定時間から遅延時間を引いた値から開始 ***
+            timeLeft = initialTime - offsetTime;
+            isRunning = true;
+            isPaused = false;
+
+            // スタイルリセット (resetCountdownを呼ぶ代わりに必要なスタイルだけリセット)
+            document.body.classList.remove('bg-gray-800');
+            document.body.classList.add('bg-gray-900');
+            countdownElement.classList.remove('text-red-500', 'countdown-finish');
+            
+            // 実行
+            runCountdown();
+            showAlert(`タイマーを${offsetTime}秒遅延させて開始しました (${timeLeft}秒から)。`);
+        }
+
+        /**
+         * タイマーを一時停止する
+         */
+        function pauseCountdown() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                isPaused = true;
+                updateButtonsState();
+                showAlert('タイマーを一時停止しました。');
+            }
+        }
+
+        /**
+         * 一時停止から再開する
+         */
+        function resumeCountdown() {
+            if (isRunning && isPaused) {
+                isPaused = false;
+                showAlert('タイマーを再開します。');
+                runCountdown();
+            }
+        }
+
+        /**
+         * スタート/一時停止/再開を切り替えるメインハンドラ
+         */
+        function handleStartPause() {
+            if (isRunning && !isPaused) {
+                // 実行中 -> 一時停止
+                pauseCountdown();
+            } else if (isRunning && isPaused) {
+                // 一時停止中 -> 再開
+                resumeCountdown();
+            } else {
+                // 停止中 / 初期状態 -> スタート
+                startNewCountdown();
+            }
+        }
+
+        /**
+         * タイマーをリセットする関数
+         */
+        function resetCountdown() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+
+            isRunning = false;
+            isPaused = false;
+            
+            // timeLeftを現在の入力値から計算されたinitialTimeに戻す
+            updateInitialTimeFromInputs();
+            
+            // リセット時はオフセットを適用せず、設定時間全体を表示する
+            timeLeft = initialTime; 
+            
+            // スタイルリセット
+            document.body.classList.remove('bg-gray-800');
+            document.body.classList.add('bg-gray-900');
+            countdownElement.classList.remove('text-red-500', 'countdown-finish', 'text-yellow-400', 'animate-pulse');
+            countdownElement.classList.add('text-white');
+            
+            // UIを初期状態に
+            updateDisplay();
+            updateButtonsState();
+
+            // アラートはonloadでのみ表示
+            // showAlert('タイマーがリセットされました。'); 
+        }
+
+        /**
+         * 入力値が変更されたときに、リセット状態なら表示を更新し、オフセットを保存するハンドラ
+         */
+        function handleInputUpdate() {
+             // タイマーが動作中でない場合のみ、表示を更新
+            if (!isRunning) {
+                resetCountdown();
+            }
+            // 遅延時間が変更されたらlocalStorageに保存
+            saveOffsetTime();
+        }
+
+        /**
+         * マウスホイールまたはタッチフリック操作で入力値を増減させるメインロジック
+         * @param {HTMLElement} input - 操作対象の入力フィールド
+         * @param {number} direction - 変更方向 (+1: 増加, -1: 減少)
+         */
+        function changeTimeValue(input, direction) {
+            let currentValue = parseInt(input.value, 10) || 0;
+            const max = parseInt(input.max, 10);
+            const min = parseInt(input.min, 10);
+            let newValue = currentValue + direction;
+
+            // 繰り上がり/繰り下がりの対象となる上位単位の入力フィールドを決定
+            let linkedInput = null;
+            if (input.id === 'inputSecond') {
+                linkedInput = inputMinute;
+            } else if (input.id === 'inputMinute') {
+                linkedInput = inputHour;
+            } else if (input.id === 'inputOffsetSecond') {
+                linkedInput = inputOffsetMinute;
+            } 
+            // 'inputHour'と'inputOffsetMinute'は最上位単位のためlinkedInputはnullのまま
+
+            
+            // 分・秒フィールドの繰り上がり/繰り下がりロジック (Max 59, Min 0)
+            const isMinSecField = (input.id.includes('Minute') && input.id !== 'inputHour') || input.id.includes('Second');
+
+            if (isMinSecField) {
+                if (direction === -1 && currentValue === min) {
+                    // 0 -> -1 の場合 (繰り下がり)
+                    if (linkedInput) {
+                        let currentLinkedValue = parseInt(linkedInput.value, 10) || 0;
+                        let linkedMin = parseInt(linkedInput.min, 10);
+
+                        if (currentLinkedValue > linkedMin) {
+                            changeTimeValue(linkedInput, -1); // 上位単位を繰り下げ
+                            newValue = 59; // 自分自身は最大値にラップアラウンド
+                        } else if (linkedInput.id === 'inputMinute' && (parseInt(inputHour.value, 10) || 0) > 0) {
+                            // 分が0で、メインタイマーの「時」がある場合（例: 01:00:xx -> 00:59:xx）
+                            changeTimeValue(inputHour, -1);
+                            newValue = 59;
+                        } else {
+                            // 最上位単位（時、またはオフセットの分）が0であれば min に留まる
+                            newValue = min;
+                        }
+                    } else {
+                        // オフセットの分など、上位単位がない場合は min に留まる
+                         newValue = min;
+                    }
+                } else if (direction === 1 && currentValue === max) {
+                    // 59 -> 60 の場合 (繰り上がり)
+                    if (linkedInput) {
+                        let currentLinkedValue = parseInt(linkedInput.value, 10) || 0;
+                        let linkedMax = parseInt(linkedInput.max, 10);
+
+                        if (currentLinkedValue < linkedMax) {
+                            changeTimeValue(linkedInput, 1); // 上位単位を繰り上げ
+                            newValue = min; // 自分自身は最小値にラップアラウンド
+                        } else {
+                            // 上位単位も最大値の場合は max に留まる
+                            newValue = max;
+                        }
+                    } else {
+                        // 最上位単位（時、またはオフセットの分）が最大値の場合は max に留まる
+                        newValue = max;
+                    }
+                } else {
+                    // 通常のmin/max制約
+                    if (newValue > max) newValue = max;
+                    if (newValue < min) newValue = min;
+                }
+            } else if (input.id === 'inputHour') {
+                // 時の通常のmin/max制約
+                if (newValue > max) newValue = max;
+                if (newValue < min) newValue = min;
+            }
+
+            // 繰り上がり/繰り下がり後の最終値をセット
+            input.value = pad(newValue); 
+        }
+
+        // --- マウスホイール操作の処理 ---
+        function handleScrollChange(event) {
+            if (isRunning) return; 
+            event.preventDefault(); 
+            
+            const input = event.target;
+            const direction = event.deltaY > 0 ? -1 : 1; // 下スクロール:減算 (-1), 上スクロール:加算 (1)
+
+            changeTimeValue(input, direction);
+            handleInputUpdate(); 
+        }
+
+        // --- タッチフリック操作の処理 ---
+        function handleTouchStart(event) {
+            if (isRunning) return; 
+            if (event.touches.length === 1) {
+                touchStartY = event.touches[0].clientY;
+            }
+        }
+
+        function handleTouchMove(event) {
+            if (isRunning) return; 
+
+            if (event.touches.length === 1) {
+                const touchCurrentY = event.touches[0].clientY;
+                const deltaY = touchCurrentY - touchStartY;
+                
+                if (Math.abs(deltaY) > TOUCH_THRESHOLD) {
+                    event.preventDefault(); // ページのスクロールを防止
+                    
+                    const input = event.target;
+                    const direction = deltaY < 0 ? 1 : -1; // 上フリック:加算 (1), 下フリック:減算 (-1)
+                    
+                    changeTimeValue(input, direction);
+
+                    touchStartY = touchCurrentY; 
+                    handleInputUpdate(); 
+                }
+            }
+        }
+
+        // イベントリスナーの設定
+        startButton.addEventListener('click', handleStartPause);
+        resetButton.addEventListener('click', resetCountdown);
+        
+        // 全ての入力フィールドに対してリスナーを設定
+        allInputs.forEach(input => {
+            // 手動入力 (入力値の変更を検知)
+            input.addEventListener('input', handleInputUpdate);
+
+            // マウスホイール
+            input.addEventListener('wheel', handleScrollChange, { passive: false });
+            
+            // タッチ操作 (フリック)
+            input.addEventListener('touchstart', handleTouchStart, { passive: true });
+            input.addEventListener('touchmove', handleTouchMove, { passive: false });
+        });
+
+
+        // ページロード時の初期表示設定
+        window.onload = function() {
+            loadOffsetTime(); // localStorageから遅延時間を読み込む
+            updateInitialTimeFromInputs();
+            resetCountdown(); 
+            showAlert('時、分、秒を設定し、必要に応じて遅延時間を設定してスタートしてください。');
+        };
+    </script>
+</body>
+</html>
