@@ -94,15 +94,15 @@
     <div class="flex items-center space-x-4 mt-6 w-full max-w-md">
         <!-- スタート/一時停止/再開ボタン -->
         <button id="startButton" class="w-2/3 px-6 py-5 bg-blue-600 text-white text-lg font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 transform hover:scale-[1.02]">
-            <!-- 初期状態のSVGアイコン -->
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <!-- 初期状態のSVGアイコン (サイズを大きく) -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 inline mr-3" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
             </svg>
             スタート
         </button>
         <button id="resetButton" class="w-1/3 px-4 py-4 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-500 focus:ring-opacity-50 transition duration-150 transform hover:scale-[1.02]">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 0 1-9.201-4.42 5.5 5.5 0 0 1 10.89 2.01.75.75 0 0 1-1.49.174 4 4 0 0 0-7.88-1.964.75.75 0 0 1-1.06-1.06 5.5 5.5 0 0 1 9.201 4.42ZM4.688 8.576a5.5 5.5 0 0 1 9.201 4.42 5.5 5.5 0 0 1-10.89-2.01.75.75 0 0 1 1.49-.174 4 4 0 0 0 7.88 1.964.75.75 0 0 1 1.06 1.06 5.5 5.5 0 0 1-9.201-4.42Z" clip-rule="evenodd" />
+                <path d="M10 2a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 10 2ZM10 15a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 10 15ZM13.939 4.561a.75.75 0 0 1 1.06 1.06l-1.06 1.06a.75.75 0 0 1-1.06-1.06l1.06-1.06ZM6.06 13.939a.75.75 0 0 1 1.06 1.06l-1.06 1.06a.75.75 0 0 1-1.06-1.06l1.06-1.06ZM17.25 10a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5a.75.75 0 0 1 .75.75ZM4.25 10a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5a.75.75 0 0 1 .75.75ZM13.939 15.439a.75.75 0 0 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 1.06l-1.06 1.06ZM6.06 6.061a.75.75 0 0 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 1.06l-1.06 1.06Z" />
             </svg>
             リセット
         </button>
@@ -212,8 +212,8 @@
         const TOUCH_THRESHOLD = 15; // スワイプと認識するY軸移動量
 
         // 共通アイコンのHTML
-        const ICON_PLAY = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>';
-        const ICON_PAUSE = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>';
+        const ICON_PLAY = '<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 inline mr-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>';
+        const ICON_PAUSE = '<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 inline mr-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>';
 
         /**
          * 2桁表示のためのパディング関数
@@ -298,12 +298,12 @@
                     // 状態: 一時停止中 (再開ボタン)
                     startButton.disabled = false;
                     startButton.classList.add('bg-green-600', 'hover:bg-green-700', 'focus:ring-green-500');
-                    startButton.innerHTML = ICON_PLAY.replace('h-6 w-6', 'h-6 w-6') + '再開';
+                    startButton.innerHTML = ICON_PLAY + '再開';
                 } else {
                     // 状態: 実行中 (一時停止ボタン)
                     startButton.disabled = false;
                     startButton.classList.add('btn-pause', 'hover:bg-orange-600', 'focus:ring-orange-500');
-                    startButton.innerHTML = ICON_PAUSE.replace('h-6 w-6', 'h-6 w-6') + '一時停止';
+                    startButton.innerHTML = ICON_PAUSE + '一時停止';
                 }
             } else {
                 // 停止中 / 初期状態 / 終了後
@@ -324,7 +324,7 @@
                 inputOffsetSecond.disabled = false;
 
                 startButton.classList.add('bg-blue-600', 'hover:bg-blue-700', 'focus:ring-blue-500');
-                startButton.innerHTML = ICON_PLAY.replace('h-6 w-6', 'h-6 w-6') + 'スタート';
+                startButton.innerHTML = ICON_PLAY + 'スタート';
             }
         }
 
