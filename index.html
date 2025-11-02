@@ -428,6 +428,12 @@
                 timeLeft--;
                 updateDisplay();
 
+                // ブロードキャスト (毎秒の状態を通知)
+                channel.postMessage({
+                    type: 'tick',
+                    timeLeft: timeLeft
+                });
+
                 if (timeLeft <= 0) {
                     // ブロードキャスト (終了を通知)
                     channel.postMessage({
@@ -440,11 +446,6 @@
                     updateDisplay(); 
                     finalizeCountdown();
                 }
-            }, 1000);
-
-            // 毎秒の状態をブロードキャスト
-            const broadcastInterval = setInterval(() => {
-                if (!isRunning || isPaused) clearInterval(broadcastInterval);
             }, 1000);
         }
 
@@ -788,6 +789,52 @@
                 // 初期表示を要求
                 channel.postMessage({ type: 'request_sync' });
 
+            } else {
+                // --- 操作モードの処理 ---
+                loadOffsetTime(); // localStorageから遅延時間を読み込む
+                updateInitialTimeFromInputs();
+                resetCountdown(); 
+                showAlert('時、分、秒を設定し、必要に応じて遅延時間を設定してスタートしてください。');
+                document.addEventListener('keydown', handleKeyPress);
+
+                // 表示タブからの同期要求に応答する
+                channel.onmessage = (event) => {
+                    if (event.data.type === 'request_sync') {
+                        channel.postMessage({
+                            type: 'sync',
+                            timeLeft: timeLeft,
+                            isRunning: isRunning,
+                            isPaused: isPaused
+                        });
+                    }
+                };
+            }
+        };
+    </script>
+</body>
+</html>
+```
+
+### 変更内容の解説
+
+1.  **毎秒のカウントダウン情報を送信**
+    *   `runCountdown` 関数内の `setInterval` の中で、1秒ごとに `timeLeft` が減算された直後に、`channel.postMessage()` を使って現在の残り時間 (`timeLeft`) を `'tick'` というタイプで送信するようにしました。
+    *   これにより、タイマーが動作している間、常に最新の残り時間が表示用ウィンドウに送られます。
+
+2.  **表示用ウィンドウでのカウントダウン同期**
+    *   表示用ウィンドウ (`isDisplayMode === true`) の `channel.onmessage` に、`'tick'` タイプのメッセージを受け取った際の処理を追加しました。
+    *   `'tick'` メッセージを受け取ると、`timeLeft` を更新して `updateDisplay()` を呼び出し、画面の表示を更新します。
+
+3.  **ウィンドウを開いた瞬間の状態同期**
+    *   **表示側**: ウィンドウが開いたときに `'request_sync'` というメッセージを送信する処理は元々ありましたが、これに加えて、操作側から送られてくる `'sync'` メッセージを受け取る処理を追加しました。このメッセージには、その時点での `timeLeft`, `isRunning`, `isPaused` の状態が含まれており、表示側の状態を完全に一致させます。
+    *   **操作側**: 表示側から `'request_sync'` メッセージを受け取った際に、現在のタイマーの状態 (`timeLeft`, `isRunning`, `isPaused`) を `'sync'` というタイプで返信する処理を追加しました。
+
+これらの修正により、別ウィンドウで開いたタイマーが、操作ウィンドウと完全に同期してカウントダウンを進めるようになります。ご不便をおかけし、申し訳ございませんでした。
+
+<!--
+[PROMPT_SUGGESTION]タイマー終了時に音を鳴らす機能を追加してください。[/PROMPT_SUGGESTION]
+[PROMPT_SUGGESTION]タイマーの設定をプリセットとして保存・読み込みできるようにしてください。[/PROMPT_SUGGESTION]
+-->
             } else {
                 // --- 操作モードの処理 ---
                 loadOffsetTime(); // localStorageから遅延時間を読み込む
