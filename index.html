@@ -26,9 +26,10 @@
             font-feature-settings: "tnum";
             /* ------------------------------------ */
 
-            /* スマホ表示対応: さらに小さく */
+            /* スマホ表示対応: 画面幅に応じてサイズを調整 */
             @media (max-width: 640px) {
-                font-size: 5rem;
+                /* vw (viewport width) を使い、画面幅の18%をフォントサイズに設定 */
+                font-size: 18vw;
             }
         }
 
