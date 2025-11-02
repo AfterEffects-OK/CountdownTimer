@@ -28,8 +28,7 @@
 
             /* スマホ表示対応: 画面幅に応じてサイズを調整 */
             @media (max-width: 640px) {
-                /* vw (viewport width) を使い、画面幅の18%をフォントサイズに設定 */
-                font-size: 18vw;
+                /* JavaScriptで動的にサイズを調整するため、固定値は設定しない */
             }
         }
 
@@ -102,7 +101,7 @@
     </div>
 
     <!-- カウントダウン表示エリア -->
-    <div id="countdown" class="text-white w-full max-w-md text-center"></div>
+    <div id="countdown" class="text-white w-full text-center"></div>
 
     <!-- ボタンエリア (新しい位置: タイマーの下) -->
     <div class="flex items-center space-x-2 sm:space-x-4 mt-6 w-full max-w-md px-4 sm:px-0">
@@ -445,6 +444,29 @@
                 countdownElement.classList.add('text-white');
             } 
         }
+
+        /**
+         * メイン画面のタイマーフォントサイズを動的に調整する（スマホ表示用）
+         */
+        function adjustMainFontSize() {
+            if (window.innerWidth > 640) {
+                // PC/タブレット表示ではCSSで定義された固定サイズに戻す
+                countdownElement.style.fontSize = ''; 
+                return;
+            }
+
+            // スマホ表示の場合
+            const containerWidth = countdownElement.clientWidth;
+            const textLength = countdownElement.textContent.length || 5;
+
+            // テキストがコンテナ幅に収まるようにフォントサイズを計算
+            // 係数 (0.6) は見た目のバランスを調整するための値
+            const newSize = containerWidth / (textLength * 0.6);
+
+            // 計算したサイズを適用
+            countdownElement.style.fontSize = `${newSize}px`;
+        }
+
 
         /**
          * タイマーが0になったときの最終状態を設定 (スタイルとボタン状態の更新)
@@ -1030,6 +1052,10 @@
                 updateInitialTimeFromInputs();
                 updatePresetList(); // プリセットリストを初期化
                 resetCountdown(); 
+                // ウィンドウリサイズ時にもフォントサイズを調整
+                window.addEventListener('resize', adjustMainFontSize);
+                // 初期読み込み時にも一度実行
+                adjustMainFontSize();
                 showAlert('時、分、秒を設定し、必要に応じて遅延時間を設定してスタートしてください。');
                 document.addEventListener('keydown', handleKeyPress);
 
@@ -1044,6 +1070,16 @@
                         });
                     }
                 };
+            }
+        };
+    </script>
+    <script>
+        // updateDisplayが呼ばれた後にフォントサイズを調整する
+        const originalUpdateDisplay = window.updateDisplay;
+        window.updateDisplay = function() {
+            originalUpdateDisplay.apply(this, arguments);
+            if (typeof window.adjustMainFontSize === 'function') {
+                window.adjustMainFontSize();
             }
         };
     </script>
