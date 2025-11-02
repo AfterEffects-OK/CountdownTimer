@@ -172,6 +172,29 @@
                 <p class="text-xs text-gray-500 text-center mt-2">※タイマーは「設定時間 - 遅延時間」から開始します。</p>
             </div>
 
+            <!-- プリセット管理エリア -->
+            <div class="border-t border-gray-700 pt-4 mt-6">
+                <h3 class="text-lg font-bold text-gray-300 mb-4 text-center">プリセット管理</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <select id="presetList" class="w-full px-3 py-2 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"></select>
+                        <button id="loadPresetButton" title="選択したプリセットを読み込む" class="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                        </button>
+                        <button id="deletePresetButton" title="選択したプリセットを削除" class="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="presetName" placeholder="プリセット名を入力..." class="w-full px-3 py-2 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150">
+                        <button id="savePresetButton" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-nowrap">
+                            保存
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 text-center">※同じ名前で保存すると上書きされます。</p>
+                </div>
+            </div>
+
             <!-- 別ウィンドウ表示ボタン -->
             <div class="border-t border-gray-700 pt-4 mt-6">
                 <button id="openDisplayWindow" class="w-full px-4 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 transition duration-150">
@@ -203,6 +226,13 @@
         const inputOffsetMinute = document.getElementById('inputOffsetMinute');
         const inputOffsetSecond = document.getElementById('inputOffsetSecond');
         const offsetTimeInputs = [inputOffsetMinute, inputOffsetSecond];
+
+        // プリセット関連のDOM要素
+        const presetList = document.getElementById('presetList');
+        const presetNameInput = document.getElementById('presetName');
+        const savePresetButton = document.getElementById('savePresetButton');
+        const loadPresetButton = document.getElementById('loadPresetButton');
+        const deletePresetButton = document.getElementById('deletePresetButton');
         const openDisplayWindowButton = document.getElementById('openDisplayWindow');
 
         // 全ての操作可能入力フィールドをまとめる (ホイール/フリック操作用)
@@ -220,6 +250,7 @@
         // localStorageのキー
         const STORAGE_OFFSET_MIN_KEY = 'timerOffsetMinute';
         const STORAGE_OFFSET_SEC_KEY = 'timerOffsetSecond';
+        const STORAGE_PRESETS_KEY = 'timerPresets';
         
         // タッチ操作用変数
         let touchStartY = 0;
@@ -590,6 +621,106 @@
         }
 
         /**
+         * プリセットをlocalStorageから読み込み、ドロップダウンを更新する
+         */
+        function updatePresetList() {
+            const presets = JSON.parse(localStorage.getItem(STORAGE_PRESETS_KEY) || '[]');
+            presetList.innerHTML = ''; // ドロップダウンをクリア
+
+            if (presets.length === 0) {
+                const option = document.createElement('option');
+                option.textContent = '保存されたプリセットはありません';
+                option.disabled = true;
+                presetList.appendChild(option);
+            } else {
+                presets.forEach(preset => {
+                    const option = document.createElement('option');
+                    option.value = preset.name;
+
+                    // 時間表示を生成 (HH:MM:SS)
+                    const h = pad(preset.hour || 0);
+                    const m = pad(preset.minute || 0);
+                    const s = pad(preset.second || 0);
+                    const timeString = `${h}:${m}:${s}`;
+                    option.textContent = `${preset.name} (${timeString})`;
+                    presetList.appendChild(option);
+                });
+            }
+        }
+
+        /**
+         * 現在の設定をプリセットとして保存する
+         */
+        function savePreset() {
+            const name = presetNameInput.value.trim();
+            if (!name) {
+                showAlert('プリセット名を入力してください。');
+                return;
+            }
+
+            let presets = JSON.parse(localStorage.getItem(STORAGE_PRESETS_KEY) || '[]');
+            const newPreset = {
+                name: name,
+                hour: inputHour.value,
+                minute: inputMinute.value,
+                second: inputSecond.value,
+                offsetMinute: inputOffsetMinute.value,
+                offsetSecond: inputOffsetSecond.value
+            };
+
+            const existingIndex = presets.findIndex(p => p.name === name);
+            if (existingIndex > -1) {
+                // 既存のプリセットを上書き
+                presets[existingIndex] = newPreset;
+            } else {
+                // 新規プリセットを追加
+                presets.push(newPreset);
+            }
+
+            localStorage.setItem(STORAGE_PRESETS_KEY, JSON.stringify(presets));
+            updatePresetList();
+            presetList.value = name; // 保存したプリセットを選択状態にする
+            showAlert(`プリセット「${name}」を保存しました。`);
+        }
+
+        /**
+         * 選択したプリセットを読み込む
+         */
+        function loadPreset() {
+            const name = presetList.value;
+            const presets = JSON.parse(localStorage.getItem(STORAGE_PRESETS_KEY) || '[]');
+            const preset = presets.find(p => p.name === name);
+
+            if (preset) {
+                inputHour.value = preset.hour;
+                inputMinute.value = preset.minute;
+                inputSecond.value = preset.second;
+                inputOffsetMinute.value = preset.offsetMinute;
+                inputOffsetSecond.value = preset.offsetSecond;
+                presetNameInput.value = preset.name; // 名前入力欄にも反映
+                handleInputUpdate(); // 表示を更新
+                showAlert(`プリセット「${name}」を読み込みました。`);
+            }
+        }
+
+        /**
+         * 選択したプリセットを削除する
+         */
+        function deletePreset() {
+            const name = presetList.value;
+            if (!name || name === '保存されたプリセットはありません') return;
+
+            if (confirm(`プリセット「${name}」を本当に削除しますか？`)) {
+                let presets = JSON.parse(localStorage.getItem(STORAGE_PRESETS_KEY) || '[]');
+                presets = presets.filter(p => p.name !== name);
+                localStorage.setItem(STORAGE_PRESETS_KEY, JSON.stringify(presets));
+                updatePresetList();
+                presetNameInput.value = ''; // 名前入力欄をクリア
+                showAlert(`プリセット「${name}」を削除しました。`);
+            }
+        }
+
+        /**
          * マウスホイールまたはタッチフリック操作で入力値を増減させるメインロジック
          * @param {HTMLElement} input - 操作対象の入力フィールド
          * @param {number} direction - 変更方向 (+1: 増加, -1: 減少)
@@ -713,6 +844,11 @@
         // イベントリスナーの設定
         startButton.addEventListener('click', handleStartPause);
         resetButton.addEventListener('click', resetCountdown);
+        savePresetButton.addEventListener('click', savePreset);
+        loadPresetButton.addEventListener('click', loadPreset);
+        deletePresetButton.addEventListener('click', deletePreset);
+        // ドロップダウンで選択したプリセット名を名前入力欄に反映
+        presetList.addEventListener('change', () => { presetNameInput.value = presetList.value; });
         
         openDisplayWindowButton.addEventListener('click', () => {
             window.open(window.location.pathname + '?display=true', 'timerDisplay', 'width=800,height=400,resizable=yes,scrollbars=no');
@@ -842,6 +978,7 @@
                 // --- 操作モードの処理 ---
                 loadOffsetTime(); // localStorageから遅延時間を読み込む
                 updateInitialTimeFromInputs();
+                updatePresetList(); // プリセットリストを初期化
                 resetCountdown(); 
                 showAlert('時、分、秒を設定し、必要に応じて遅延時間を設定してスタートしてください。');
                 document.addEventListener('keydown', handleKeyPress);
