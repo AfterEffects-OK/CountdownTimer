@@ -759,6 +759,29 @@
                 document.getElementById('resetButton').style.display = 'none';
                 document.body.classList.add('display-mode');
 
+                /**
+                 * ウィンドウサイズに合わせてタイマーのフォントサイズを調整する関数
+                 */
+                function adjustFontSize() {
+                    const viewWidth = window.innerWidth;
+                    const viewHeight = window.innerHeight;
+
+                    // 表示テキストの長さを考慮 (例: "00:00" は5文字)
+                    // テキストが長いほど、同じウィンドウ幅でもフォントを小さくする必要がある
+                    const textLength = countdownElement.textContent.length || 5;
+
+                    // 幅と高さの両方に収まるようにフォントサイズを計算
+                    // 係数 (0.6や0.7) は見た目のバランスを調整するための値
+                    const fontSizeBasedOnWidth = viewWidth / (textLength * 0.6);
+                    const fontSizeBasedOnHeight = viewHeight * 0.7;
+
+                    // 計算された2つのサイズのうち、小さい方を採用してはみ出しを防ぐ
+                    const newSize = Math.min(fontSizeBasedOnWidth, fontSizeBasedOnHeight);
+
+                    // 計算したサイズを適用
+                    countdownElement.style.fontSize = `${newSize}px`;
+                }
+
                 // メッセージ受信時の処理
                 channel.onmessage = (event) => {
                     const data = event.data;
@@ -770,12 +793,14 @@
                             if (timeLeft <= 0 && !isRunning) {
                                 finalizeCountdown();
                             } else {
-                                updateDisplay();
+                                updateDisplay(); // 表示を更新
+                                adjustFontSize(); // フォントサイズを調整
                             }
                             break;
                         case 'tick': // 毎秒の更新
                             timeLeft = data.timeLeft;
                             updateDisplay();
+                            adjustFontSize(); // フォントサイズを調整
                             break;
                         case 'start':
                         case 'resume':
@@ -783,6 +808,7 @@
                             isRunning = true;
                             isPaused = false;
                             // 'tick'が来るのでここではupdateDisplay不要
+                            adjustFontSize(); // フォントサイズを調整
                             updateDisplay();
                             break;
                         case 'pause':
@@ -793,17 +819,24 @@
                             isRunning = false;
                             isPaused = false;
                             // リセット後の状態を表示
+                            adjustFontSize(); // フォントサイズを調整
                             updateDisplay();
                             break;
                         case 'finish':
                             timeLeft = 0;
                             updateDisplay();
                             finalizeCountdown();
+                            adjustFontSize(); // フォントサイズを調整
                             break;
                     }
                 };
                 // 初期表示を要求
                 channel.postMessage({ type: 'request_sync' });
+
+                // ウィンドウリサイズ時にもフォントサイズを調整
+                window.addEventListener('resize', adjustFontSize);
+                // 初期読み込み時にも一度実行
+                adjustFontSize();
 
             } else {
                 // --- 操作モードの処理 ---
