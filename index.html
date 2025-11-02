@@ -436,6 +436,12 @@
                 return;
             }
 
+            // 画面の先頭までスムーズにスクロール
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+
             // 状態を初期化してスタート
             // *** 設定時間から遅延時間を引いた値から開始 ***
             timeLeft = initialTime - offsetTime;
