@@ -92,9 +92,17 @@
 </head>
 <body class="bg-gray-900 flex flex-col items-center justify-center min-h-screen p-4">
 
+    <!-- 表示切替ボタンエリア -->
+    <div class="mt-32 mb-4">
+        <button id="toggleDisplayModeButton" class="px-4 py-2 bg-gray-700 text-gray-300 text-sm font-semibold rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition duration-150">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" clip-rule="evenodd" /></svg>
+            経過時間を表示
+        </button>
+    </div>
+
     <!-- カウントダウン表示エリア -->
-    <div id="countdown" class="text-white mt-32"></div>
-    
+    <div id="countdown" class="text-white"></div>
+
     <!-- ボタンエリア (新しい位置: タイマーの下) -->
     <div class="flex items-center space-x-2 sm:space-x-4 mt-6 w-full max-w-md">
         <!-- スタート/一時停止/再開ボタン -->
@@ -215,6 +223,7 @@
         const startButton = document.getElementById('startButton');
         const resetButton = document.getElementById('resetButton');
         const customAlert = document.getElementById('customAlert');
+        const toggleDisplayModeButton = document.getElementById('toggleDisplayModeButton');
 
         // メインタイマーの入力フィールド
         const inputHour = document.getElementById('inputHour');
@@ -246,6 +255,8 @@
         let offsetTime = 0; // 追加: 遅延時間 (秒)
         let isRunning = false;
         let isPaused = false; 
+        let isShowingElapsedTime = false; // 追加: 経過時間表示モードか
+        let startTimeForElapsed = 0; // 追加: 経過時間計算用の開始時間
         
         // localStorageのキー
         const STORAGE_OFFSET_MIN_KEY = 'timerOffsetMinute';
@@ -378,10 +389,19 @@
          * タイマーの表示を更新する関数 (H:MM:SSまたはMM:SS形式)
          */
         function updateDisplay() {
+            let displaySeconds;
+            if (isShowingElapsedTime && isRunning) {
+                // 経過時間を表示
+                displaySeconds = initialTime - timeLeft;
+            } else {
+                // 残り時間を表示
+                displaySeconds = timeLeft;
+            }
+
             let displayTime = '';
 
             // timeLeftがマイナスの場合は0として計算 (ただし、runCountdownで停止するため基本は0以上)
-            const totalSeconds = Math.max(0, timeLeft);
+            const totalSeconds = Math.max(0, displaySeconds);
             
             // 時・分・秒の計算
             const h = Math.floor(totalSeconds / 3600);
@@ -509,6 +529,7 @@
             timeLeft = initialTime - offsetTime;
             isRunning = true;
             isPaused = false;
+            startTimeForElapsed = timeLeft; // 経過時間計算の基準として保存
 
             // スタイルリセット (resetCountdownを呼ぶ代わりに必要なスタイルだけリセット)
             document.body.classList.remove('bg-gray-800');
@@ -587,6 +608,7 @@
 
             isRunning = false;
             isPaused = false;
+            isShowingElapsedTime = false; // 経過時間表示モードもリセット
             
             // timeLeftを現在の入力値から計算されたinitialTimeに戻す
             updateInitialTimeFromInputs();
@@ -602,6 +624,7 @@
             
             // UIを初期状態に
             updateDisplay();
+            updateToggleDisplayButton();
             updateButtonsState();
 
             // アラートはonloadでのみ表示
@@ -618,6 +641,21 @@
             }
             // 遅延時間が変更されたらlocalStorageに保存
             saveOffsetTime();
+        }
+
+        /**
+         * 経過時間/残り時間 表示切替ボタンのテキストを更新する
+         */
+        function updateToggleDisplayButton() {
+            if (isShowingElapsedTime) {
+                toggleDisplayModeButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.5-13a.5.5 0 00-1 0v5.793L6.293 7.707a.5.5 0 00-.707.707l3.5 3.5a.5.5 0 00.707 0l3.5-3.5a.5.5 0 00-.707-.707L10.5 10.793V5z" clip-rule="evenodd" /></svg>
+                    残り時間を表示`;
+            } else {
+                toggleDisplayModeButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" clip-rule="evenodd" /></svg>
+                    経過時間を表示`;
+            }
         }
 
         /**
@@ -844,6 +882,13 @@
         // イベントリスナーの設定
         startButton.addEventListener('click', handleStartPause);
         resetButton.addEventListener('click', resetCountdown);
+        toggleDisplayModeButton.addEventListener('click', () => {
+            isShowingElapsedTime = !isShowingElapsedTime;
+            updateToggleDisplayButton();
+            updateDisplay();
+            // 別ウィンドウに通知
+            channel.postMessage({ type: 'toggle_display_mode', showElapsedTime: isShowingElapsedTime });
+        });
         savePresetButton.addEventListener('click', savePreset);
         loadPresetButton.addEventListener('click', loadPreset);
         deletePresetButton.addEventListener('click', deletePreset);
@@ -945,6 +990,10 @@
                             isPaused = false;
                             // 'tick'が来るのでここではupdateDisplay不要
                             adjustFontSize(); // フォントサイズを調整
+                            updateDisplay();
+                            break;
+                        case 'toggle_display_mode':
+                            isShowingElapsedTime = data.showElapsedTime;
                             updateDisplay();
                             break;
                         case 'pause':
