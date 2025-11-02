@@ -83,6 +83,11 @@
         .btn-pause:hover {
             background-color: #ed8936;
         }
+
+        /* 表示モード用のスタイル */
+        body.display-mode {
+            justify-content: center; /* タイマーを垂直中央に */
+        }
     </style>
 </head>
 <body class="bg-gray-900 flex flex-col items-center justify-center min-h-screen p-4">
@@ -109,7 +114,7 @@
     </div>
 
     <!-- コントロールパネル -->
-    <div class="mt-8 p-6 bg-gray-800 rounded-xl shadow-2xl w-full max-w-md">
+    <div id="controlPanel" class="mt-8 p-6 bg-gray-800 rounded-xl shadow-2xl w-full max-w-md">
         
         <!-- タイマー設定エリア -->
         <h2 class="text-xl font-bold text-gray-100 mb-6 text-center">タイマー設定 (時:分:秒)</h2>
@@ -166,6 +171,13 @@
                 </div>
                 <p class="text-xs text-gray-500 text-center mt-2">※タイマーは「設定時間 - 遅延時間」から開始します。</p>
             </div>
+
+            <!-- 別ウィンドウ表示ボタン -->
+            <div class="border-t border-gray-700 pt-4 mt-6">
+                <button id="openDisplayWindow" class="w-full px-4 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 transition duration-150">
+                    タイマーを別ウィンドウで表示
+                </button>
+            </div>
             
         </div>
     </div>
@@ -174,6 +186,7 @@
     <div id="customAlert" class="alert-box"></div>
 
     <script>
+        const channel = new BroadcastChannel('timer_channel');
         // DOM要素の取得
         const countdownElement = document.getElementById('countdown');
         const startButton = document.getElementById('startButton');
@@ -190,6 +203,7 @@
         const inputOffsetMinute = document.getElementById('inputOffsetMinute');
         const inputOffsetSecond = document.getElementById('inputOffsetSecond');
         const offsetTimeInputs = [inputOffsetMinute, inputOffsetSecond];
+        const openDisplayWindowButton = document.getElementById('openDisplayWindow');
 
         // 全ての操作可能入力フィールドをまとめる (ホイール/フリック操作用)
         const allInputs = [...timeInputs, ...offsetTimeInputs];
@@ -402,6 +416,12 @@
          * タイマーのコア実行ループ
          */
         function runCountdown() {
+            // ブロードキャスト (他のタブに開始を通知)
+            channel.postMessage({
+                type: 'start',
+                timeLeft: timeLeft
+            });
+
             updateButtonsState();
 
             timerInterval = setInterval(() => {
@@ -409,12 +429,22 @@
                 updateDisplay();
 
                 if (timeLeft <= 0) {
+                    // ブロードキャスト (終了を通知)
+                    channel.postMessage({
+                        type: 'finish'
+                    });
+
                     clearInterval(timerInterval);
                     timerInterval = null;
                     // 最終表示を00:00に確定させるために、再度updateDisplayを呼び出す（timeLeftは0）
                     updateDisplay(); 
                     finalizeCountdown();
                 }
+            }, 1000);
+
+            // 毎秒の状態をブロードキャスト
+            const broadcastInterval = setInterval(() => {
+                if (!isRunning || isPaused) clearInterval(broadcastInterval);
             }, 1000);
         }
 
@@ -466,6 +496,11 @@
                 clearInterval(timerInterval);
                 timerInterval = null;
                 isPaused = true;
+                // ブロードキャスト (一時停止を通知)
+                channel.postMessage({
+                    type: 'pause'
+                });
+
                 updateButtonsState();
                 showAlert('タイマーを一時停止しました。');
             }
@@ -477,6 +512,11 @@
         function resumeCountdown() {
             if (isRunning && isPaused) {
                 isPaused = false;
+                // ブロードキャスト (再開を通知)
+                channel.postMessage({
+                    type: 'resume'
+                });
+
                 showAlert('タイマーを再開します。');
                 runCountdown();
             }
@@ -506,6 +546,12 @@
                 clearInterval(timerInterval);
                 timerInterval = null;
             }
+
+            // ブロードキャスト (リセットを通知)
+            channel.postMessage({
+                type: 'reset',
+                initialTime: initialTime
+            });
 
             isRunning = false;
             isPaused = false;
@@ -667,6 +713,10 @@
         startButton.addEventListener('click', handleStartPause);
         resetButton.addEventListener('click', resetCountdown);
         
+        openDisplayWindowButton.addEventListener('click', () => {
+            window.open(window.location.pathname + '?display=true', 'timerDisplay', 'width=800,height=400,resizable=yes,scrollbars=no');
+        });
+
         // 全ての入力フィールドに対してリスナーを設定
         allInputs.forEach(input => {
             // 手動入力 (入力値の変更を検知)
@@ -698,13 +748,54 @@
 
         // ページロード時の初期表示設定
         window.onload = function() {
-            loadOffsetTime(); // localStorageから遅延時間を読み込む
-            updateInitialTimeFromInputs();
-            resetCountdown(); 
-            showAlert('時、分、秒を設定し、必要に応じて遅延時間を設定してスタートしてください。');
+            const urlParams = new URLSearchParams(window.location.search);
+            const isDisplayMode = urlParams.get('display') === 'true';
 
-            // キーボードイベントリスナーを追加
-            document.addEventListener('keydown', handleKeyPress);
+            if (isDisplayMode) {
+                // --- 表示モードの処理 ---
+                document.getElementById('controlPanel').style.display = 'none';
+                document.getElementById('startButton').style.display = 'none';
+                document.getElementById('resetButton').style.display = 'none';
+                document.body.classList.add('display-mode');
+
+                // メッセージ受信時の処理
+                channel.onmessage = (event) => {
+                    const data = event.data;
+                    switch (data.type) {
+                        case 'start':
+                        case 'resume':
+                            timeLeft = data.timeLeft;
+                            isRunning = true;
+                            isPaused = false;
+                            updateDisplay();
+                            break;
+                        case 'pause':
+                            isPaused = true;
+                            break;
+                        case 'reset':
+                            timeLeft = data.initialTime;
+                            isRunning = false;
+                            isPaused = false;
+                            updateDisplay();
+                            break;
+                        case 'finish':
+                            timeLeft = 0;
+                            updateDisplay();
+                            finalizeCountdown();
+                            break;
+                    }
+                };
+                // 初期表示を要求
+                channel.postMessage({ type: 'request_sync' });
+
+            } else {
+                // --- 操作モードの処理 ---
+                loadOffsetTime(); // localStorageから遅延時間を読み込む
+                updateInitialTimeFromInputs();
+                resetCountdown(); 
+                showAlert('時、分、秒を設定し、必要に応じて遅延時間を設定してスタートしてください。');
+                document.addEventListener('keydown', handleKeyPress);
+            }
         };
     </script>
 </body>
