@@ -86,14 +86,43 @@
 
         /* 表示モード用のスタイル */
         body.display-mode {
-            justify-content: center; /* タイマーを垂直中央に */
+            justify-content: flex-start; /* 上寄せに変更 */
+            padding-top: 25vh; /* 画面の高さの25%を上のパディングに設定 */
+        }
+
+        /* 表示モード用のラベルスタイル */
+        #displayModeLabel {
+            position: fixed;
+            top: 2.5rem; /* 上の余白を少し増やす */
+            left: 2rem;
+            font-size: 9rem; /* 大きな文字 (3倍) */
+            font-weight: bold;
+            color: white; /* 白色に変更 */
+        }
+
+        /* 全画面表示モードからの復帰ボタン */
+        #exitFullscreenButton {
+            position: fixed;
+            top: 1.5rem;
+            right: 2rem;
+            z-index: 100; /* 他の要素より手前に */
         }
     </style>
 </head>
 <body class="bg-gray-900 flex flex-col items-center justify-center min-h-screen py-4">
 
+    <!-- 表示モード用のラベル -->
+    <div id="displayModeLabel" class="hidden"></div>
+    <button id="exitFullscreenButton" class="hidden px-4 py-2 bg-gray-700 text-gray-300 text-sm font-semibold rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition duration-150">
+        通常表示に戻る
+    </button>
+
     <!-- 表示切替ボタンエリア -->
-    <div class="mt-32 mb-4">
+    <div id="toggleDisplayContainer" class="mt-32 mb-4">
+        <button id="fullscreenButton" class="px-4 py-2 bg-gray-700 text-gray-300 text-sm font-semibold rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition duration-150 mr-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.25 2A2.25 2.25 0 002 4.25v2.5a.75.75 0 001.5 0v-2.5a.75.75 0 01.75-.75h2.5a.75.75 0 000-1.5h-2.5zM15.75 2h-2.5a.75.75 0 000 1.5h2.5a.75.75 0 01.75.75v2.5a.75.75 0 001.5 0v-2.5A2.25 2.25 0 0015.75 2zM2 15.75v-2.5a.75.75 0 00-1.5 0v2.5A2.25 2.25 0 004.25 18h2.5a.75.75 0 000-1.5h-2.5a.75.75 0 01-.75-.75zM18 15.75a.75.75 0 01-.75.75h-2.5a.75.75 0 000 1.5h2.5A2.25 2.25 0 0020 15.75v-2.5a.75.75 0 00-1.5 0v2.5z" clip-rule="evenodd" /></svg>
+            全画面表示
+        </button>
         <button id="toggleDisplayModeButton" class="px-4 py-2 bg-gray-700 text-gray-300 text-sm font-semibold rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition duration-150">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" clip-rule="evenodd" /></svg>
             経過時間を表示
@@ -104,7 +133,7 @@
     <div id="countdown" class="text-white w-full text-center sm:max-w-md relative sm:h-32 flex items-center justify-center"></div>
 
     <!-- ボタンエリア (新しい位置: タイマーの下) -->
-    <div class="flex items-center space-x-2 sm:space-x-4 mt-6 w-full max-w-md px-4 sm:px-0">
+    <div id="mainButtonsContainer" class="flex items-center space-x-2 sm:space-x-4 mt-6 w-full max-w-md px-4 sm:px-0">
         <!-- スタート/一時停止/再開ボタン -->
         <button id="startButton" class="w-2/3 px-6 py-5 bg-blue-600 text-white text-lg font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 transform hover:scale-[1.02]">
             <!-- 初期状態のSVGアイコン (サイズを大きく) -->
@@ -224,6 +253,11 @@
         const resetButton = document.getElementById('resetButton');
         const customAlert = document.getElementById('customAlert');
         const toggleDisplayModeButton = document.getElementById('toggleDisplayModeButton');
+        const toggleDisplayContainer = document.getElementById('toggleDisplayContainer');
+        const displayModeLabel = document.getElementById('displayModeLabel');
+        const fullscreenButton = document.getElementById('fullscreenButton');
+        const mainButtonsContainer = document.getElementById('mainButtonsContainer');
+        const exitFullscreenButton = document.getElementById('exitFullscreenButton');
 
         // メインタイマーの入力フィールド
         const inputHour = document.getElementById('inputHour');
@@ -257,6 +291,7 @@
         let isPaused = false; 
         let isShowingElapsedTime = false; // 追加: 経過時間表示モードか
         let startTimeForElapsed = 0; // 追加: 経過時間計算用の開始時間
+        let isFullscreenMode = false; // 追加: 現在のウィンドウが全画面表示モードか
         
         // localStorageのキー
         const STORAGE_OFFSET_MIN_KEY = 'timerOffsetMinute';
@@ -498,7 +533,8 @@
             // ブロードキャスト (他のタブに開始を通知)
             channel.postMessage({
                 type: 'start',
-                timeLeft: timeLeft
+                timeLeft: timeLeft,
+                initialTime: initialTime
             });
 
             updateButtonsState();
@@ -628,18 +664,18 @@
                 timerInterval = null;
             }
 
+            isRunning = false;
+            isPaused = false;
+            isShowingElapsedTime = false; // 経過時間表示モードもリセット
+            
+            // 先に新しい時間を計算する
+            updateInitialTimeFromInputs();
+
             // ブロードキャスト (リセットを通知)
             channel.postMessage({
                 type: 'reset',
                 initialTime: initialTime
             });
-
-            isRunning = false;
-            isPaused = false;
-            isShowingElapsedTime = false; // 経過時間表示モードもリセット
-            
-            // timeLeftを現在の入力値から計算されたinitialTimeに戻す
-            updateInitialTimeFromInputs();
             
             // リセット時はオフセットを適用せず、設定時間全体を表示する
             timeLeft = initialTime; 
@@ -684,6 +720,108 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" clip-rule="evenodd" /></svg>
                     経過時間を表示`;
             }
+        }
+
+        /**
+         * 表示モードのラベルを更新する（のこり時間/経過時間）
+         */
+        function updateDisplayLabel() {
+            if (isShowingElapsedTime) {
+                displayModeLabel.textContent = '経過時間';
+            } else {
+                displayModeLabel.textContent = 'のこり時間';
+            }
+        }
+
+        /**
+         * 全画面表示モードに入る
+         */
+        function enterFullscreenMode() {
+            if (isFullscreenMode) return;
+            isFullscreenMode = true;
+
+            // 不要な要素を非表示
+            controlPanel.style.display = 'none';
+            mainButtonsContainer.style.display = 'none';
+            toggleDisplayContainer.style.display = 'none';
+
+            // PC表示用のレイアウト制限を解除
+            countdownElement.classList.remove('sm:max-w-md', 'sm:h-32', 'flex', 'items-center', 'justify-center');
+            countdownElement.innerHTML = ''; // spanラップをクリア
+            countdownElement.style.marginTop = '0'; // 上の余白を強制的に削除
+
+            // ラベルを表示
+            displayModeLabel.classList.remove('hidden');
+            updateDisplayLabel();
+            exitFullscreenButton.classList.remove('hidden');
+
+            // bodyのスタイルを適用
+            document.body.classList.add('display-mode');
+
+            // フォントサイズを調整
+            adjustFullscreenFontSize();
+
+            // 復帰用のキーボードイベントリスナーを追加
+            document.addEventListener('keydown', handleFullscreenExitKey);
+        }
+
+        /**
+         * 全画面表示モードから抜ける
+         */
+        function exitFullscreenMode() {
+            if (!isFullscreenMode) return;
+            isFullscreenMode = false;
+
+            // 非表示にした要素を再表示
+            controlPanel.style.display = '';
+            mainButtonsContainer.style.display = '';
+            toggleDisplayContainer.style.display = '';
+
+            // PC表示用のレイアウト制限を元に戻す
+            countdownElement.classList.add('sm:max-w-md', 'sm:h-32', 'flex', 'items-center', 'justify-center');
+            countdownElement.style.marginTop = ''; // 上の余白設定を元に戻す
+
+            // ラベルを非表示
+            displayModeLabel.classList.add('hidden');
+            exitFullscreenButton.classList.add('hidden');
+
+            // bodyのスタイルを削除
+            document.body.classList.remove('display-mode');
+
+            // フォントサイズを元に戻す
+            adjustMainFontSize();
+
+            // 復帰用のキーボードイベントリスナーを削除
+            document.removeEventListener('keydown', handleFullscreenExitKey);
+        }
+
+        function handleFullscreenExitKey(event) {
+            if (event.key === 'Escape') {
+                exitFullscreenMode();
+            }
+        }
+
+        /**
+         * 全画面/別ウィンドウ表示用のフォントサイズ調整
+         */
+        function adjustFullscreenFontSize() {
+            const viewWidth = window.innerWidth;
+            const viewHeight = window.innerHeight;
+
+            // 表示テキストの長さを考慮 (例: "00:00" は5文字)
+            // テキストが長いほど、同じウィンドウ幅でもフォントを小さくする必要がある
+            const textLength = countdownElement.textContent.length || 5;
+
+            // 幅と高さの両方に収まるようにフォントサイズを計算
+            // 係数 (0.6や0.7) は見た目のバランスを調整するための値
+            const fontSizeBasedOnWidth = viewWidth / (textLength * 0.6);
+            const fontSizeBasedOnHeight = viewHeight * 0.7;
+
+            // 計算された2つのサイズのうち、小さい方を採用してはみ出しを防ぐ
+            const newSize = Math.min(fontSizeBasedOnWidth, fontSizeBasedOnHeight);
+
+            // 計算したサイズを適用
+            countdownElement.style.fontSize = `${newSize}px`;
         }
 
         /**
@@ -909,6 +1047,8 @@
 
         // イベントリスナーの設定
         startButton.addEventListener('click', handleStartPause);
+        exitFullscreenButton.addEventListener('click', exitFullscreenMode);
+        fullscreenButton.addEventListener('click', enterFullscreenMode);
         resetButton.addEventListener('click', resetCountdown);
         toggleDisplayModeButton.addEventListener('click', () => {
             isShowingElapsedTime = !isShowingElapsedTime;
@@ -966,42 +1106,32 @@
                 document.getElementById('controlPanel').style.display = 'none';
                 document.getElementById('startButton').style.display = 'none';
                 document.getElementById('resetButton').style.display = 'none';
+                toggleDisplayContainer.style.display = 'none';
                 document.body.classList.add('display-mode');
 
                 /**
                  * ウィンドウサイズに合わせてタイマーのフォントサイズを調整する関数
                  */
                 function adjustFontSize() {
-                    const viewWidth = window.innerWidth;
-                    const viewHeight = window.innerHeight;
-
-                    // 表示テキストの長さを考慮 (例: "00:00" は5文字)
-                    // テキストが長いほど、同じウィンドウ幅でもフォントを小さくする必要がある
-                    const textLength = countdownElement.textContent.length || 5;
-
-                    // 幅と高さの両方に収まるようにフォントサイズを計算
-                    // 係数 (0.6や0.7) は見た目のバランスを調整するための値
-                    const fontSizeBasedOnWidth = viewWidth / (textLength * 0.6);
-                    const fontSizeBasedOnHeight = viewHeight * 0.7;
-
-                    // 計算された2つのサイズのうち、小さい方を採用してはみ出しを防ぐ
-                    const newSize = Math.min(fontSizeBasedOnWidth, fontSizeBasedOnHeight);
-
-                    // 計算したサイズを適用
-                    countdownElement.style.fontSize = `${newSize}px`;
+                    // 全画面表示モードのフォントサイズ調整ロジックを再利用
+                    adjustFullscreenFontSize();
                 }
 
                 // メッセージ受信時の処理
                 channel.onmessage = (event) => {
                     const data = event.data;
                     switch (data.type) {
+
                         case 'sync': // 操作タブからの完全な同期情報
                             timeLeft = data.timeLeft;
                             isRunning = data.isRunning;
+                            initialTime = data.initialTime;
                             isPaused = data.isPaused;
+                            isShowingElapsedTime = data.isShowingElapsedTime;
                             if (timeLeft <= 0 && !isRunning) {
                                 finalizeCountdown();
                             } else {
+                                updateDisplayLabel(); // ラベル表示を更新
                                 updateDisplay(); // 表示を更新
                                 adjustFontSize(); // フォントサイズを調整
                             }
@@ -1014,6 +1144,7 @@
                         case 'start':
                         case 'resume':
                             timeLeft = data.timeLeft;
+                            initialTime = data.initialTime;
                             isRunning = true;
                             isPaused = false;
                             // 'tick'が来るのでここではupdateDisplay不要
@@ -1022,6 +1153,7 @@
                             break;
                         case 'toggle_display_mode':
                             isShowingElapsedTime = data.showElapsedTime;
+                            updateDisplayLabel();
                             updateDisplay();
                             break;
                         case 'pause':
@@ -1030,6 +1162,7 @@
                         case 'reset':
                             timeLeft = data.initialTime;
                             isRunning = false;
+                            isShowingElapsedTime = false;
                             isPaused = false;
                             // リセット後の状態を表示
                             adjustFontSize(); // フォントサイズを調整
@@ -1044,6 +1177,9 @@
                     }
                 };
                 // 初期表示を要求
+
+                displayModeLabel.classList.remove('hidden');
+
                 channel.postMessage({ type: 'request_sync' });
 
                 // ウィンドウリサイズ時にもフォントサイズを調整
@@ -1070,8 +1206,10 @@
                         channel.postMessage({
                             type: 'sync',
                             timeLeft: timeLeft,
+                            initialTime: initialTime,
                             isRunning: isRunning,
-                            isPaused: isPaused
+                            isPaused: isPaused,
+                            isShowingElapsedTime: isShowingElapsedTime
                         });
                     }
                 };
@@ -1082,8 +1220,13 @@
         // updateDisplayが呼ばれた後にフォントサイズを調整する
         const originalUpdateDisplay = window.updateDisplay;
         window.updateDisplay = function() {
-            originalUpdateDisplay.apply(this, arguments);
-            if (typeof window.adjustMainFontSize === 'function') {
+            originalUpdateDisplay.apply(this, arguments); // 元の関数を実行
+            if (isFullscreenMode) {
+                // 全画面表示モードの時は、全画面用のフォントサイズ調整を呼ぶ
+                if (typeof window.adjustFullscreenFontSize === 'function') {
+                    adjustFullscreenFontSize();
+                }
+            } else if (typeof window.adjustMainFontSize === 'function') {
                 window.adjustMainFontSize();
             }
         };
