@@ -93,6 +93,7 @@
         body.display-mode {
             justify-content: flex-start; /* 上寄せに変更 */
             padding-top: 25vh; /* 画面の高さの25%を上のパディングに設定 */
+            background-color: transparent !important; /* 背景を透明に */
         }
 
         /* 表示モード用のラベルスタイル */
@@ -762,6 +763,7 @@
 
             // bodyのスタイルを適用
             document.body.classList.add('display-mode');
+            document.documentElement.style.backgroundColor = 'transparent';
 
             // フォントサイズを調整
             adjustFullscreenFontSize();
@@ -792,6 +794,7 @@
 
             // bodyのスタイルを削除
             document.body.classList.remove('display-mode');
+            document.documentElement.style.backgroundColor = '';
 
             // フォントサイズを元に戻す
             adjustMainFontSize();
@@ -1113,6 +1116,7 @@
                 document.getElementById('resetButton').style.display = 'none';
                 toggleDisplayContainer.style.display = 'none';
                 document.body.classList.add('display-mode');
+                document.documentElement.style.backgroundColor = 'transparent';
 
                 /**
                  * ウィンドウサイズに合わせてタイマーのフォントサイズを調整する関数
