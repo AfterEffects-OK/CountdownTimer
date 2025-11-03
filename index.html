@@ -7,16 +7,17 @@
     <!-- Tailwind CSS CDNを読み込み -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 'Inter'フォントを適用 */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700&display=swap');
+        /* 'Roboto'フォント (SemiBold 600) を適用 */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@600&display=swap');
         body {
-            font-family: 'Inter', sans-serif;
             transition: background-color 0.5s ease;
         }
 
         /* カウントダウン表示用の巨大なフォントスタイル */
         #countdown {
-            font-size: 8rem; 
+            font-family: 'Roboto', sans-serif;
+            font-size: 8rem;
+            font-weight: 600;
             line-height: 1;
             transition: color 0.5s, transform 0.3s;
             text-shadow: 
@@ -28,7 +29,7 @@
             
             /* --- 数字の幅を固定 (等幅数字) --- */
             font-variant-numeric: tabular-nums; 
-            font-feature-settings: "tnum";
+            font-feature-settings: "tnum" on;
             /* ------------------------------------ */
 
             /* スマホ表示対応: 画面幅に応じてサイズを調整 */
