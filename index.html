@@ -101,7 +101,7 @@
     </div>
 
     <!-- カウントダウン表示エリア -->
-    <div id="countdown" class="text-white w-full text-center"></div>
+    <div id="countdown" class="text-white w-full text-center sm:max-w-md relative sm:h-32 flex items-center justify-center"></div>
 
     <!-- ボタンエリア (新しい位置: タイマーの下) -->
     <div class="flex items-center space-x-2 sm:space-x-4 mt-6 w-full max-w-md px-4 sm:px-0">
@@ -415,7 +415,12 @@
                 displayTime = `${pad(m)}:${pad(s)}`;
             }
             
-            countdownElement.textContent = displayTime;
+            // PC表示の時だけ、はみ出しを均等にするためにspanでラップする
+            if (window.innerWidth > 640) {
+                countdownElement.innerHTML = `<span style="position: absolute; left: 50%; transform: translateX(-50%);">${displayTime}</span>`;
+            } else {
+                countdownElement.textContent = displayTime;
+            }
 
             // --- スタイル更新 ---
             
